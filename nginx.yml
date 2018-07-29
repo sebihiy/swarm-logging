@@ -2,8 +2,9 @@ version: '3'
 
 services:
   nginx:
-    image: hanzel/nginx-html
+    image: dtr.dockerdc.fr/mdm/nginx
+
     ports:
-      - "8000:80"
+      - "8089:80"
     deploy:
       replicas: 5

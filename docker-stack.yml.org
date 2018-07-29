@@ -2,7 +2,7 @@ version: '3'
 
 services:
   elasticsearch:
-    image: dtr.dockerdc.fr/mdm/elasticsearch:5.3.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.3.2
     environment:
       ES_JAVA_OPTS: '-Xms256m -Xmx256m'
       xpack.security.enabled: 'false'
@@ -11,31 +11,29 @@ services:
       xpack.watcher.enabled: 'false'
     volumes:
       - esdata:/usr/share/elasticsearch/data
-    networks:
-      - elk2
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == worker01.ebs.local 
+          - node.hostname == agent1
 
   logstash:
-    image: dtr.dockerdc.fr/mdm/logstash:5.3.2
+    image: docker.elastic.co/logstash/logstash:5.3.2
     volumes:
       - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    networks:
-      - elk2
+    depends_on:
+      - elasticsearch
     deploy:
       replicas: 1
 
   logspout:
-    image: dtr.dockerdc.fr/mdm/logspout-logstash:latest
+    image: bekt/logspout-logstash
     environment:
       ROUTE_URIS: 'logstash://logstash:5000'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - elk2
+    depends_on:
+      - logstash
     deploy:
       mode: global
       restart_policy:
@@ -43,23 +41,18 @@ services:
         delay: 30s
 
   kibana:
-    image: dtr.dockerdc.fr/mdm/kibana:5.3.2
-    networks:
-      - elk2
+    image: docker.elastic.co/kibana/kibana:5.3.2
+    ports:
+      - '80:5601'
+    depends_on:
+      - elasticsearch
     environment:
       ELASTICSEARCH_URL: 'http://elasticsearch:9200'
       XPACK_SECURITY_ENABLED: 'false'
       XPACK_MONITORING_ENABLED: 'false'
     deploy:
       replicas: 1
-      labels:
-        com.docker.lb.hosts: elk.app.dockerdc.fr
-        com.docker.lb.port: 5601
-        com.docker.lb.network: elk2
 
 volumes:
   esdata:
     driver: local
-networks:
-  elk2:
-    driver: overlay
